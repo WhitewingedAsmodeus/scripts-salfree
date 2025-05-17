@@ -1,2 +1,2 @@
 # scripts-salfree
-scripts i made and others made
+These are scripts either ive made or others have
