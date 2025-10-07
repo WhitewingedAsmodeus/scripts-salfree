@@ -60,6 +60,5 @@ if (player && player.anims) {
     ig.system.context.restore();
   };
   console.log("spasm attack, will add more later)");
-```
 }
 ```
