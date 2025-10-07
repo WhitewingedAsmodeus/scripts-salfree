@@ -45,7 +45,7 @@ function rocket() {
 // Trigger the rocket
 rocket();
 ```
-spasm/shake
+spasm/shake (client sided for now)
 ```
 const player = ig.game.O4269;
 if (player && player.anims) {
@@ -61,4 +61,8 @@ if (player && player.anims) {
   };
   console.log("spasm attack, will add more later)");
 }
+```
+client-sided editor (allows you to place blocks in other peoples worlds but only appear to you)
+```
+ig.game.isEditorHere=true
 ```
