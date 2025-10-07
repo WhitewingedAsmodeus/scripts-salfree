@@ -5,16 +5,16 @@ These are scripts either ive made or others have
 
 add these into the inspect element console (dont past them in all at once) 
 
-# Building script (works the same way as regular fill with some tweaks)
-
+Building script (works the same way as regular fill with some tweaks)
+```
 ig.game.O7715.queuePerformDelayMs = 0;
 eval(`ig.game.mapPlacementValidation.getAllInnerOfRectangleAreSameForFillBuilding=${ig.game.mapPlacementValidation.getAllInnerOfRectangleAreSameForFillBuilding.toString().replaceAll("return g", "return true")}`)
 ig.game.mapPlacementValidation.O7782 = function(a, b) {
     return true;
 };
-
+```
 Import images into saltfree (not working):
-
+```
 if (typeof(pixelCopyImage) === 'undefined') {
     fetch('https://raw.githubusercontent.com/Pixelguru26/manyland-importer-3/main/PixelCopyImage.js').then(
         response => response.text()
@@ -26,7 +26,8 @@ if (typeof(pixelCopyImage) === 'undefined') {
         }
     );
 }
-
-# Anti death:
-
+```
+Anti death:
+```
 ig.game.O4269.kill = function() {};
+```
