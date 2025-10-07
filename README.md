@@ -33,6 +33,17 @@ Anti death:
 ```
 ig.game.O4269.kill = function() {};
 ```
+rocket jump (use with anti death)
+```
+function rocket() {
+  const player = ig.game.O4269;
+  if(player && typeof player.vel !== "undefined"){
+    player.vel.y = -1100; // negative y = upward velocity
+  }
+}
+
+// Trigger the rocket
+rocket();
 teleport:
 ```
 function main() {
@@ -49,4 +60,21 @@ function main() {
     }
 }
 main();
+```
+spasm/shake
+```
+const player = ig.game.O4269;
+if (player && player.anims) {
+  const origDraw = player.draw;
+  player.spasmTime = 0;
+  player.draw = function() {
+    this.spasmTime++;
+    const shake = Math.sin(this.spasmTime * 1.5) * 3;
+    ig.system.context.save();
+    ig.system.context.translate(shake, Math.cos(this.spasmTime * 2) * 3);
+    origDraw.apply(this, arguments);
+    ig.system.context.restore();
+  };
+  console.log("spasm attack, will add more later)");
+}
 ```
