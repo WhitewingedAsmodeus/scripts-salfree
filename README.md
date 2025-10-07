@@ -44,22 +44,6 @@ function rocket() {
 
 // Trigger the rocket
 rocket();
-teleport:
-```
-function main() {
-    ig.game.O4269.kill = function() {};
-    let oldUpdate = ig.game.update;
-    ig.game.update = function() {
-        let result = oldUpdate.apply(this, arguments);
-        if (ig.input.state('shift') && ig.input.pressed('middleclick')) {
-            let x = ig.game.screen.x + ig.input.mouse.x;
-            let y = ig.game.screen.y + ig.input.mouse.y;
-            ig.game.O4269.pos = {x: x, y: y}
-        }
-        return result;
-    }
-}
-main();
 ```
 spasm/shake
 ```
@@ -76,5 +60,6 @@ if (player && player.anims) {
     ig.system.context.restore();
   };
   console.log("spasm attack, will add more later)");
+```
 }
 ```
