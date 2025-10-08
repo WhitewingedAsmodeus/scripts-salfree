@@ -66,3 +66,39 @@ client-sided editor (allows you to place blocks in other peoples worlds but only
 ```
 ig.game.isEditorHere=true
 ```
+const cocaineSpasm = () => {
+    if (!ig?.game?.O4269) return setTimeout(cocaineSpasm, 500);
+    let p = ig.game.O4269;
+    let old = p.update.bind(p);
+
+    // prevent death
+    p.kill = function() {}; 
+
+    p.update = function() {
+        this.gravityFactor = 0;
+
+        // strong fly movement
+        const s = 1600;
+        if (ig.input.state('left'))  this.vel.x = -s;
+        if (ig.input.state('right')) this.vel.x = s;
+        if (ig.input.state('up'))    this.vel.y = -s;
+        if (ig.input.state('down'))  this.vel.y = s;
+
+        if (!ig.input.state('left') && !ig.input.state('right')) this.vel.x *= 0.7;
+        if (!ig.input.state('up') && !ig.input.state('down'))   this.vel.y *= 0.7;
+
+        // spasm shake
+        this.pos.x += (Math.random() - 0.5) * 20;
+        this.pos.y += (Math.random() - 0.5) * 20;
+
+        // rotation chaos
+        if (this._rot === undefined) this._rot = 0;
+        this._rot += (Math.random() - 0.5) * 0.4;
+        if ('angle' in this) this.angle = this._rot;
+
+        old();
+    };
+};
+
+cocaineSpasm();
+```
