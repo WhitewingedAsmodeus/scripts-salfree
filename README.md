@@ -66,6 +66,8 @@ client-sided editor (allows you to place blocks in other peoples worlds but only
 ```
 ig.game.isEditorHere=true
 ```
+cocaine script
+```
 const cocaineSpasm = () => {
     if (!ig?.game?.O4269) return setTimeout(cocaineSpasm, 500);
     let p = ig.game.O4269;
