@@ -104,3 +104,43 @@ const cocaineSpasm = () => {
 
 cocaineSpasm();
 ```
+no gravity flight only wasd and </> arrow keys work not up and down ^V
+```
+`
+ig.game.gravity = 0; // No gravity
+
+let oldUpdate = ig.game.update;
+ig.game.update = function() {
+    oldUpdate.apply(this, arguments);
+
+    let p = ig.game?.O4269;
+    if (!p || !p.pos) return;
+
+    // ---- Free flight movement (WASD + arrow keys) ----
+    let speed = 3.5;
+    if (ig.input.state('left')  || ig.input.state('a') || ig.input.state('arrowleft'))  p.pos.x -= speed;
+    if (ig.input.state('right') || ig.input.state('d') || ig.input.state('arrowright')) p.pos.x += speed;
+    if (ig.input.state('up')    || ig.input.state('w') || ig.input.state('arrowup'))    p.pos.y -= speed;
+    if (ig.input.state('down')  || ig.input.state('s') || ig.input.state('arrowdown'))  p.pos.y += speed;
+
+    // ---- Random wobble ----
+    p.pos.x += (Math.random() - 0.5) * 1.2;
+    p.pos.y += (Math.random() - 0.5) * 0.8;
+
+    // ---- No death ----
+    if (typeof p.kill === "function") p.kill = function() {};
+    if ("O5004" in p) p.O5004 = 0;
+    if ("O6766" in p) p.O6766 = false;
+
+    // ---- Keep inside screen ----
+    if (typeof ig.utils?.clamp === "function") {
+        p.pos.x = ig.utils.clamp(p.pos.x, 0, ig.system.width);
+        p.pos.y = ig.utils.clamp(p.pos.y, 0, ig.system.height);
+    }
+
+    // ---- Rotation wobble ----
+    if (p._wobbleRot === undefined) p._wobbleRot = 0;
+    p._wobbleRot += (Math.random() - 0.5) * 0.1;
+    if ("angle" in p) p.angle = p._wobbleRot;
+};
+```
