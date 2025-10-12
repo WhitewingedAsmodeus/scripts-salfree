@@ -144,3 +144,93 @@ ig.game.update = function() {
     if ("angle" in p) p.angle = p._wobbleRot;
 };
 ```
+FIXED freecam ctrl+E
+```
+(function() {
+    'use strict';
+
+    const game = ig.game;
+    const cam = game.camera;
+
+    
+    const oldCameraUpdate = cam.update.bind(cam);
+    const originalOffset = { x: cam.offset.x, y: cam.offset.y };
+    let followMouse = false;
+
+    // Freecam reach reach (adjust this for bigger range)
+    const reachMultiplier = 2; // 1 = normal, 2 = double, etc.
+
+    // Hook camera update
+    cam.update = function() {
+        oldCameraUpdate();
+
+        // Toggle freecam / mouse follow on Ctrl+E
+        if (ig.input.state('ctrl') && ig.input.pressed('e')) {
+            followMouse = !followMouse;
+            console.log(followMouse ? 'Freecam enabled' : 'Freecam disabled');
+
+            if (!followMouse) {
+                cam.offset.x = originalOffset.x;
+                cam.offset.y = originalOffset.y;
+            }
+        }
+
+        // Apply mouse-following freecam (centered + extended)
+        if (followMouse) {
+            const mx = ig.input.mouse.x;
+            const my = ig.input.mouse.y;
+
+            const centerX = ig.system.width / 2;
+            const centerY = ig.system.height / 2;
+
+            cam.offset.x = originalOffset.x + ((mx - centerX) / ig.system.scale) * reachMultiplier;
+            cam.offset.y = originalOffset.y + ((my - centerY) / ig.system.scale) * reachMultiplier;
+        }
+    };
+
+})();
+```
+FIXED high contrast ctrl+[
+```
+(function() {
+    'use strict';
+
+    // Adjustable settings
+    const CONTRAST_ON = "300%";   // contrast when enabled
+    const CONTRAST_OFF = "100%";  // contrast when disabled
+    const BRIGHTNESS_ON = "110%"; // optional brightness tweak
+    const BRIGHTNESS_OFF = "100%";
+
+    // Load saved state
+    let saved = localStorage.getItem('contrastsettings');
+    let enabled = saved ? JSON.parse(saved) : false;
+
+    // Apply current state
+    const applyFilter = (state) => {
+        const canvas = jQuery("canvas");
+        if (state) {
+            canvas.css("filter", `contrast(${CONTRAST_ON}) brightness(${BRIGHTNESS_ON})`);
+        } else {
+            canvas.css("filter", `contrast(${CONTRAST_OFF}) brightness(${BRIGHTNESS_OFF})`);
+        }
+    };
+
+    applyFilter(enabled);
+
+    // Toggle function
+    const toggleContrast = () => {
+        enabled = !enabled;
+        applyFilter(enabled);
+        localStorage.setItem('contrastsettings', JSON.stringify(enabled));
+        console.log(enabled ? "High Contrast ON" : "High Contrast OFF");
+    };
+
+    // Keybind: Ctrl + [
+    window.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === "[") {
+            toggleContrast();
+        }
+    });
+
+})();
+``
