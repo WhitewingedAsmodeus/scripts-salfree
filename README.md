@@ -76,32 +76,59 @@ const cocaineSpasm = () => {
     // prevent death
     p.kill = function() {}; 
 
-    // State tracking
+    // Spasm toggle
     let spasmActive = true;
+    setInterval(() => { spasmActive = !spasmActive; }, 30000);
 
-    // Toggle spasm state periodically
-    setInterval(() => {
-        spasmActive = !spasmActive;
-    }, 30000); // every 30 seconds toggle spasm
-     
-    // HTML screen effects
     const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
     let hue = 0;
 
-    const applyScreenEffects = () => {
-        if (!canvas) return;
+    const liquidWarp = () => {
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // Capture current canvas frame
+        const frame = ctx.getImageData(0, 0, w, h);
+        const srcData = new Uint8ClampedArray(frame.data); // make a copy to read from
+
+        const amplitude = 5; // wave strength
+        const frequency = 0.02;
+
+        for (let y = 0; y < h; y++) {
+            const offset = Math.floor(Math.sin((y + hue) * frequency) * amplitude);
+            for (let x = 0; x < w; x++) {
+                let dstX = x + offset;
+                if (dstX < 0) dstX = 0;
+                if (dstX >= w) dstX = w - 1;
+
+                const srcIdx = (y * w + x) * 4;
+                const dstIdx = (y * w + dstX) * 4;
+
+                frame.data[dstIdx] = srcData[srcIdx];
+                frame.data[dstIdx + 1] = srcData[srcIdx + 1];
+                frame.data[dstIdx + 2] = srcData[srcIdx + 2];
+                frame.data[dstIdx + 3] = srcData[srcIdx + 3];
+            }
+        }
+
+        ctx.putImageData(frame, 0, 0);
+
+        // color chaos
         hue += 2;
         canvas.style.filter = `hue-rotate(${hue}deg) saturate(1.5)`;
-        canvas.style.transform = `rotate(${Math.sin(hue/20)}deg) scale(${1 + Math.sin(hue/15)*0.05})`;
-        requestAnimationFrame(applyScreenEffects);
+        canvas.style.transform = `scale(${1 + Math.sin(hue/30)*0.02}) rotate(${Math.sin(hue/20)*0.5}deg)`;
+
+        requestAnimationFrame(liquidWarp);
     };
-    applyScreenEffects();
+    liquidWarp();
 
     p.update = function() {
         if (spasmActive) {
             this.gravityFactor = 0;
 
-            // strong fly movement
             const s = 1600;
             if (ig.input.state('left'))  this.vel.x = -s;
             if (ig.input.state('right')) this.vel.x = s;
@@ -111,18 +138,14 @@ const cocaineSpasm = () => {
             if (!ig.input.state('left') && !ig.input.state('right')) this.vel.x *= 0.7;
             if (!ig.input.state('up') && !ig.input.state('down'))   this.vel.y *= 0.7;
 
-            // spasm shake
             this.pos.x += (Math.random() - 0.5) * 20;
             this.pos.y += (Math.random() - 0.5) * 20;
 
-            // rotation chaos
             if (this._rot === undefined) this._rot = 0;
             this._rot += (Math.random() - 0.5) * 0.4;
             if ('angle' in this) this.angle = this._rot;
         } else {
-            // Normal behavior (no spasm)
             this.gravityFactor = 1;
-            // Optional: smoothly reduce velocity to normal
             this.vel.x *= 0.95;
             this.vel.y *= 0.95;
         }
