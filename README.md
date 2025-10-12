@@ -71,9 +71,10 @@ cocaine script
 const cocaineSpasm = () => {
     if (!ig?.game?.O4269) return setTimeout(cocaineSpasm, 500);
     let p = ig.game.O4269;
+    let oldKill = p.kill.bind(p);
     let old = p.update.bind(p);
 
-    // prevent death
+    // prevent death initially
     p.kill = function() {}; 
 
     // Spasm toggle
@@ -85,6 +86,26 @@ const cocaineSpasm = () => {
     const ctx = canvas.getContext('2d');
 
     let hue = 0;
+    let elapsed = 0;
+
+    // Gradually drain health over 25 seconds
+    const drainDuration = 25000; // ms
+    const drainInterval = 100; // ms
+    const steps = drainDuration / drainInterval;
+    const initialHealth = p.health ?? 100; 
+    const drainAmount = initialHealth / steps;
+
+    const healthDrain = setInterval(() => {
+        elapsed += drainInterval;
+        if (p.health !== undefined) {
+            p.health -= drainAmount;
+            if (p.health <= 0) {
+                clearInterval(healthDrain);
+                p.kill = oldKill;
+                p.kill();
+            }
+        }
+    }, drainInterval);
 
     const liquidWarp = () => {
         const w = canvas.width;
@@ -92,9 +113,10 @@ const cocaineSpasm = () => {
 
         // Capture current canvas frame
         const frame = ctx.getImageData(0, 0, w, h);
-        const srcData = new Uint8ClampedArray(frame.data); // make a copy to read from
+        const srcData = new Uint8ClampedArray(frame.data);
 
-        const amplitude = 5; // wave strength
+        // Gradually increase amplitude over time
+        const amplitude = 5 + 10 * Math.min(elapsed / drainDuration, 1); // 5 → 15 max
         const frequency = 0.02;
 
         for (let y = 0; y < h; y++) {
@@ -155,6 +177,7 @@ const cocaineSpasm = () => {
 };
 
 cocaineSpasm();
+
 
 ```
 no gravity flight only wasd and </> arrow keys work not up and down ^V
