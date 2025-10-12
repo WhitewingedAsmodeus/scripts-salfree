@@ -76,33 +76,63 @@ const cocaineSpasm = () => {
     // prevent death
     p.kill = function() {}; 
 
+    // State tracking
+    let spasmActive = true;
+
+    // Toggle spasm state periodically
+    setInterval(() => {
+        spasmActive = !spasmActive;
+    }, 30000); // every 30 seconds toggle spasm
+     
+    // HTML screen effects
+    const canvas = document.querySelector('canvas');
+    let hue = 0;
+
+    const applyScreenEffects = () => {
+        if (!canvas) return;
+        hue += 2;
+        canvas.style.filter = `hue-rotate(${hue}deg) saturate(1.5)`;
+        canvas.style.transform = `rotate(${Math.sin(hue/20)}deg) scale(${1 + Math.sin(hue/15)*0.05})`;
+        requestAnimationFrame(applyScreenEffects);
+    };
+    applyScreenEffects();
+
     p.update = function() {
-        this.gravityFactor = 0;
+        if (spasmActive) {
+            this.gravityFactor = 0;
 
-        // strong fly movement
-        const s = 1600;
-        if (ig.input.state('left'))  this.vel.x = -s;
-        if (ig.input.state('right')) this.vel.x = s;
-        if (ig.input.state('up'))    this.vel.y = -s;
-        if (ig.input.state('down'))  this.vel.y = s;
+            // strong fly movement
+            const s = 1600;
+            if (ig.input.state('left'))  this.vel.x = -s;
+            if (ig.input.state('right')) this.vel.x = s;
+            if (ig.input.state('up'))    this.vel.y = -s;
+            if (ig.input.state('down'))  this.vel.y = s;
 
-        if (!ig.input.state('left') && !ig.input.state('right')) this.vel.x *= 0.7;
-        if (!ig.input.state('up') && !ig.input.state('down'))   this.vel.y *= 0.7;
+            if (!ig.input.state('left') && !ig.input.state('right')) this.vel.x *= 0.7;
+            if (!ig.input.state('up') && !ig.input.state('down'))   this.vel.y *= 0.7;
 
-        // spasm shake
-        this.pos.x += (Math.random() - 0.5) * 20;
-        this.pos.y += (Math.random() - 0.5) * 20;
+            // spasm shake
+            this.pos.x += (Math.random() - 0.5) * 20;
+            this.pos.y += (Math.random() - 0.5) * 20;
 
-        // rotation chaos
-        if (this._rot === undefined) this._rot = 0;
-        this._rot += (Math.random() - 0.5) * 0.4;
-        if ('angle' in this) this.angle = this._rot;
+            // rotation chaos
+            if (this._rot === undefined) this._rot = 0;
+            this._rot += (Math.random() - 0.5) * 0.4;
+            if ('angle' in this) this.angle = this._rot;
+        } else {
+            // Normal behavior (no spasm)
+            this.gravityFactor = 1;
+            // Optional: smoothly reduce velocity to normal
+            this.vel.x *= 0.95;
+            this.vel.y *= 0.95;
+        }
 
         old();
     };
 };
 
 cocaineSpasm();
+
 ```
 no gravity flight only wasd and </> arrow keys work not up and down ^V
 ```
