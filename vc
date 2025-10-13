@@ -1,76 +1,252 @@
-``voice to text```
-```
-(function speechtotextRealtime() {
-    let speechSettings = JSON.parse(localStorage.getItem('speechsettings'));
-    ig.game.settings.spe = speechSettings === null ? false : speechSettings;
+```// mods/speechtotext.js
+(function () {
+    'use strict';
 
-    function timeout(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    const CHAR_DELAY = 45; // ms per character (tweak to taste)
+    const BUFFER_CHECK_MS = 30;
+
+    function timeout(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+    function waitForDependencies(cb) {
+        const check = setInterval(() => {
+            if (typeof Deobfuscator !== 'undefined' &&
+                typeof Artyom !== 'undefined' &&
+                typeof ig !== 'undefined' &&
+                ig.game && ig.game.player && ig.game.websocket && ig.game.settings) {
+                clearInterval(check);
+                cb();
+            }
+        }, 100);
     }
 
-    const playerChat = Deobfuscator.object(ig.game.player, 'player', false);
-    const wordBuffer = []; // buffer for words
+    waitForDependencies(() => {
+        // Deobfuscator hooks
+        const playerChat = Deobfuscator.object(ig.game.player, 'player', false);
+        ig.game.websocket.sendSpeech = Deobfuscator.function(ig.game.websocket, ".SPEECH,{");
 
-    ig.game.player.type = async function(text) {
-        if (!text) return;
-        if (text === '_nl') {
-            ig.game.websocket.sendSpeech('_nl');
-            playerChat.addItem('_nl', false);
-        } else {
+        // Word buffer
+        const wordBuffer = [];
+        let bufferInterval = null;
+
+        // Ensure ig.game.player.type exists and uses _c format for letters
+        ig.game.player.type = async function (text) {
+            if (!text) return;
+            if (text === '_nl') {
+                try { ig.game.websocket.sendSpeech('_nl'); } catch (e) {}
+                try { playerChat.addItem('_nl', false); } catch (e) {}
+                return;
+            }
             for (const letter of text) {
-                ig.game.websocket.sendSpeech(`_c${letter}`);
-                playerChat.addItem(`_c${letter}`, false);
-                await timeout(50);
+                try { ig.game.websocket.sendSpeech(`_c${letter}`); } catch (e) {}
+                try { playerChat.addItem(`_c${letter}`, false); } catch (e) {}
+                await timeout(CHAR_DELAY);
+            }
+        };
+
+        // Typing consumer
+        function startBufferConsumer() {
+            if (bufferInterval) return;
+            bufferInterval = setInterval(async () => {
+                if (wordBuffer.length > 0) {
+                    const word = wordBuffer.shift();
+                    if (word) await ig.game.player.type(word + " ");
+                }
+            }, BUFFER_CHECK_MS);
+        }
+        function stopBufferConsumer() {
+            if (bufferInterval) {
+                clearInterval(bufferInterval);
+                bufferInterval = null;
             }
         }
-    }
 
-    const artyom = new Artyom();
-    const UserDictation = artyom.newDictation({
-        continuous: true,
-        interimResults: true, // process words in real-time
-        onResult: function(event) {
-            const text = event?.value || event;
-            if (text && text.trim() !== '') {
-                // Split by space into words
-                const words = text.trim().split(/\s+/);
-                for (const word of words) {
-                    wordBuffer.push(word.toLowerCase());
+        // Simple on-screen listening indicator
+        const indicator = (() => {
+            try {
+                const el = document.createElement('div');
+                el.id = 'sf-voice-indicator';
+                el.style.position = 'fixed';
+                el.style.right = '12px';
+                el.style.bottom = '12px';
+                el.style.zIndex = 999999;
+                el.style.padding = '6px 8px';
+                el.style.borderRadius = '8px';
+                el.style.background = 'rgba(0,0,0,0.6)';
+                el.style.color = '#fff';
+                el.style.fontSize = '12px';
+                el.style.fontFamily = 'sans-serif';
+                el.style.pointerEvents = 'none';
+                el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
+                el.textContent = 'voice: off';
+                el.style.transition = 'transform 120ms ease';
+                document.body.appendChild(el);
+                return el;
+            } catch (e) { return null; }
+        })();
+
+        function indicatorPulse() {
+            if (!indicator) return;
+            indicator.textContent = 'listening';
+            indicator.style.transform = 'scale(1.06)';
+            setTimeout(() => {
+                if (indicator) {
+                    indicator.textContent = 'voice: on';
+                    indicator.style.transform = 'scale(1)';
                 }
+            }, 300);
+        }
+        function indicatorSetOff() {
+            if (!indicator) return;
+            indicator.textContent = 'voice: off';
+            indicator.style.transform = 'scale(1)';
+        }
+        function indicatorSetOn() {
+            if (!indicator) return;
+            indicator.textContent = 'voice: on';
+            indicator.style.transform = 'scale(1)';
+        }
+
+        // Artyom lifecycle
+        let artyomInstance = null;
+        let artyomDictation = null;
+        let voiceEnabled = false;
+
+        function safePushWordsFromString(str) {
+            if (!str) return;
+            const words = str.trim().split(/\s+/).filter(Boolean);
+            for (const w of words) wordBuffer.push(w.toLowerCase());
+        }
+
+        function createAndStartArtyom() {
+            // ensure previous instance killed
+            try { if (artyomInstance) artyomInstance.fatality(); } catch (e) {}
+
+            // create new artyom instance
+            artyomInstance = new Artyom();
+
+            // initialize artyom; crucial: listen:true to use mic
+            artyomInstance.initialize({
+                lang: "en-GB", // change to en-US if you prefer
+                continuous: true,
+                listen: true,
+                debug: false,
+                speed: 1
+            }).then(() => {
+                // Add a wildcard command so every recognized phrase gets sent into buffer
+                // 'indexes:["*"]' with smart:true catches free-form speech
+                try {
+                    artyomInstance.addCommands([{
+                        indexes: ["*"],
+                        smart: true,
+                        action: function (i, wildcard) {
+                            // wildcard is the recognized phrase
+                            safePushWordsFromString(wildcard);
+                            indicatorPulse();
+                        }
+                    }]);
+                } catch (e) {
+                    // fallback: many Artyom builds support newDictation; try that
+                    try {
+                        artyomDictation = artyomInstance.newDictation({
+                            continuous: true,
+                            onResult: function (text) {
+                                const recognized = (typeof text === 'string') ? text : (text?.value || '');
+                                safePushWordsFromString(recognized);
+                                indicatorPulse();
+                            }
+                        });
+                        // start dictation if API exposes start()
+                        try { artyomDictation.start(); } catch (ee) { /* fallback */ }
+                    } catch (ee) { /* ignore */ }
+                }
+
+                startBufferConsumer();
+                indicatorSetOn();
+            }).catch(err => {
+                // initialization failed; show user
+                alert("Artyom initialize failed: " + (err && err.message ? err.message : String(err)));
+                stopArtyom();
+            });
+        }
+
+        function stopArtyom() {
+            try {
+                if (artyomDictation && typeof artyomDictation.stop === 'function') artyomDictation.stop();
+            } catch (e) {}
+            try { if (artyomInstance) artyomInstance.fatality(); } catch (e) {}
+            artyomDictation = null;
+            artyomInstance = null;
+            wordBuffer.length = 0;
+            stopBufferConsumer();
+            indicatorSetOff();
+        }
+
+        // Request microphone permission (forces browser prompt) then start artyom
+        function enableVoiceWithPermission() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert("Microphone capture not available in this browser.");
+                return;
             }
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                // stop tracks immediately — just needed permission
+                try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+
+                // now actually start artyom which will use the mic
+                createAndStartArtyom();
+                voiceEnabled = true;
+                localStorage.setItem('speechsettings', JSON.stringify(true));
+            }).catch(() => {
+                alert("Microphone permission denied.");
+                voiceEnabled = false;
+                localStorage.setItem('speechsettings', JSON.stringify(false));
+            });
+        }
+
+        function disableVoice() {
+            stopArtyom();
+            voiceEnabled = false;
+            localStorage.setItem('speechsettings', JSON.stringify(false));
+        }
+
+        function toggleVoice() {
+            if (!voiceEnabled) enableVoiceWithPermission();
+            else disableVoice();
+        }
+
+        // Integrate with Saltfree settings
+        try {
+            if (!ig.game.settings.mods) ig.game.settings.mods = {};
+            ig.game.settings.mods.speechtotext = { toggleVoice };
+            if (ig.game.settings.Create && typeof ig.game.settings.Create.toggle === 'function') {
+                ig.game.settings.Create.toggle("Speech to Text (Artyom)", "spe", "ig.game.settings.mods.speechtotext.toggleVoice()");
+            }
+        } catch (e) { /* ignore UI integration errors */ }
+
+        // Restore saved state (attempt to start; user may need to re-allow mic once per session)
+        try {
+            const saved = JSON.parse(localStorage.getItem('speechsettings'));
+            if (saved) {
+                // small delay so UI loads fully
+                setTimeout(() => {
+                    // try enabling — if browser blocks, user must toggle manually
+                    enableVoiceWithPermission();
+                }, 300);
+            }
+        } catch (e) { /* ignore parsing errors */ }
+
+        // Expose debug helpers
+        if (!window._saltfree_speechtotext) {
+            window._saltfree_speechtotext = {
+                start: () => { if (!voiceEnabled) enableVoiceWithPermission(); },
+                stop: () => { if (voiceEnabled) disableVoice(); },
+                running: () => !!voiceEnabled,
+                bufferSize: () => wordBuffer.length
+            };
         }
     });
-
-    ig.game.settings.speechFunction = function() {
-        if (!this.spe) {
-            UserDictation.start();
-            // Process words one by one in real-time
-            const interval = setInterval(async () => {
-                while (wordBuffer.length > 0) {
-                    const word = wordBuffer.shift();
-                    if (word) await ig.game.player.type(word + " "); // add space after each word
-                }
-            }, 50);
-            this._bufferInterval = interval;
-        } else {
-            UserDictation.stop();
-            clearInterval(this._bufferInterval);
-        }
-        this.spe = !this.spe;
-        localStorage.setItem('speechsettings', JSON.stringify(this.spe));
-    }
-
-    // Restore toggle on page reload
-    if (ig.game.settings.spe) {
-        ig.game.settings.spe = false;
-        ig.game.settings.speechFunction();
-    }
-
-    // Add toggle to Saltfree settings
-    ig.game.settings.Create.toggle("Speech to Text", "spe", "ig.game.settings.speechFunction()");
 })();
 ```
-part two 
+
 ```
 (function() {
     // Helper to wait
