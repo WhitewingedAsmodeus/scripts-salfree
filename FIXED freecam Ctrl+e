@@ -1,0 +1,43 @@
+(function() {
+    'use strict';
+
+    const game = ig.game;
+    const cam = game.camera;
+
+    
+    const oldCameraUpdate = cam.update.bind(cam);
+    const originalOffset = { x: cam.offset.x, y: cam.offset.y };
+    let followMouse = false;
+
+    // Freecam reach reach (adjust this for bigger range)
+    const reachMultiplier = 2; // 1 = normal, 2 = double, etc.
+
+    // Hook camera update
+    cam.update = function() {
+        oldCameraUpdate();
+
+        // Toggle freecam / mouse follow on Ctrl+E
+        if (ig.input.state('ctrl') && ig.input.pressed('e')) {
+            followMouse = !followMouse;
+            console.log(followMouse ? 'Freecam enabled' : 'Freecam disabled');
+
+            if (!followMouse) {
+                cam.offset.x = originalOffset.x;
+                cam.offset.y = originalOffset.y;
+            }
+        }
+
+        // Apply mouse-following freecam (centered + extended)
+        if (followMouse) {
+            const mx = ig.input.mouse.x;
+            const my = ig.input.mouse.y;
+
+            const centerX = ig.system.width / 2;
+            const centerY = ig.system.height / 2;
+
+            cam.offset.x = originalOffset.x + ((mx - centerX) / ig.system.scale) * reachMultiplier;
+            cam.offset.y = originalOffset.y + ((my - centerY) / ig.system.scale) * reachMultiplier;
+        }
+    };
+
+})();
