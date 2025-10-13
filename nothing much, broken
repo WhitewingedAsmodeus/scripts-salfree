@@ -30,28 +30,24 @@
             this.flatImage ??= this.flatten();
             const palette = [];
             const seen = {};
+            const maxColors = 50;
             for (const px of this.flatImage) {
-                if (px[3] > 10) { // only visible
-                    const key = `${px[0]},${px[1]},${px[2]}`;
-                    if (!seen[key]) {
-                        seen[key] = true;
-                        palette.push({ r:px[0], g:px[1], b:px[2], a:255 });
-                    }
+                if (px[3] <= 10) continue;
+                const key = `${px[0]},${px[1]},${px[2]}`;
+                if (!seen[key]) {
+                    seen[key] = true;
+                    palette.push({ r:px[0], g:px[1], b:px[2], a:255 });
+                    if (palette.length >= maxColors) break;
                 }
             }
-            // sort by brightness: light → dark
-            palette.sort((a, b) => 
-                (0.299*a.r + 0.587*a.g + 0.114*a.b) - 
-                (0.299*b.r + 0.587*b.g + 0.114*b.b)
-            );
-            this.palette = palette.slice(0, 13);
+            this.palette = palette;
             return this.palette;
         }
 
         palettize() {
             this.getPalette();
             this.paletteImage = this.flatImage.map(px => {
-                if (px[3] <= 10) return -1; // transparent
+                if (px[3] <= 10) return -1;
                 let bestIdx = 0;
                 let bestDist = Infinity;
                 for (let i = 0; i < this.palette.length; i++) {
@@ -70,7 +66,7 @@
         }
     }
 
-    function writeToPainter(img) {
+    async function writeToPainter(img) {
         const p = ig.game.painter;
         if (!p) { console.error("Painter not ready"); return; }
         p.data ??= {};
@@ -78,41 +74,78 @@
         pd.colors ??= [];
         pd.pixels ??= [];
 
+        const isDynamic = pd.type === 'dynamicThing';
+
         if (!img.paletteImage) img.palettize();
 
-        // assign colors skipping slots 11–13
         const slotMapping = [];
         let slot = 0;
         for (let i = 0; i < img.palette.length; i++) {
-            while ([10, 11, 12].includes(slot)) slot++; // skip reserved slots
+            while ([11, 12].includes(slot)) slot++; // skip 11 and 12
             pd.colors[slot] = img.palette[i];
             slotMapping[i] = slot;
             slot++;
         }
 
-        // map lighter colors first
+        // For normal import
         const frame = [];
         for (let y = 0; y < img.h; y++) {
             const row = [];
             for (let x = 0; x < img.w; x++) {
-                const pixIdx = img.getPixelPIndex(x, y);
-                row.push(pixIdx >= 0 ? slotMapping[pixIdx] : 11); // transparent → eraser
+                const pix = img.getPixelPIndex(x, y);
+                row.push(pix >= 0 ? slotMapping[pix] : 11);
             }
             frame.push(row);
         }
 
-        pd.pixels = [frame];
+        // If dynamic, cut into 9 cells (3x3 grid of 29x29)
+        if (isDynamic) {
+            const cellSize = 29;
+            const cells = [];
+            for (let cy = 0; cy < 3; cy++) {
+                for (let cx = 0; cx < 3; cx++) {
+                    const startX = cx * cellSize;
+                    const startY = cy * cellSize;
+                    const cell = [];
+                    for (let y = 0; y < cellSize; y++) {
+                        const row = [];
+                        for (let x = 0; x < cellSize; x++) {
+                            const px = img.getPixelPIndex(startX + x, startY + y);
+                            row.push(px >= 0 ? slotMapping[px] : 11);
+                        }
+                        cell.push(row);
+                    }
+                    cells.push(cell);
+                }
+            }
+            pd.pixels = cells;
+            pd.text = "0s: cell 2 right 29, cell 3 right 58, cell 4 down 29, cell 5 down 29, cell 5 right 29, cell 6 down 29, cell 6 right 58, cell 7 down 58, cell 8 down 58, cell 8 right 29, cell 9 down 58, cell 9 right 58, cell 1 show, cell 2 show, cell 3 show, cell 4 show, cell 5 show, cell 6 show, cell 7 show, cell 8 show, cell 9 show";
+            console.log("🧩 Dynamic mode enabled — 9 cells applied & custom Saltfree code written");
+        } else {
+            pd.pixels = [frame];
+        }
+
         p.update?.();
-        console.log("✅ Image imported with light→dark mapping — shape & transparency preserved!");
+        console.log(`✅ Imported (${img.palette.length} colors, skipping 11&12, dynamic: ${isDynamic})`);
     }
 
     async function pixelCopyFromImgur(url) {
-        const jImg = await Jimp.read(url);
+        let jImg = await Jimp.read(url);
+
+        const maxSize = 200;
+        const { width, height } = jImg.bitmap;
+        if (width > maxSize || height > maxSize) {
+            const scale = maxSize / Math.max(width, height);
+            jImg.resize(Math.round(width * scale), Math.round(height * scale));
+            console.log(`⚡ Resized to ${jImg.bitmap.width}x${jImg.bitmap.height}`);
+        }
+
         const img = new MLImage(jImg);
         img.flatten();
         img.palettize();
-        writeToPainter(img);
+        await writeToPainter(img);
     }
 
-    await pixelCopyFromImgur('https://i.imgur.com/523wDoO.png');
+    // Example use
+    await pixelCopyFromImgur('YOUR_IMAGE_URL_HERE');
 })();
