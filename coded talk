@@ -1,0 +1,40 @@
+(function() {
+    // Fixed mapping for all letters and numbers (no duplicates, no self-maps)
+    const keyMap = {
+        a: 'g', b: 't', c: 'p', d: 'm', e: 'y', f: 'k', g: 'n', h: 'c',
+        i: 'q', j: 'r', k: 'l', l: 'b', m: 'f', n: 's', o: 'h', p: 'w',
+        q: 'e', r: 'j', s: 'v', t: 'd', u: 'z', v: 'x', w: 'u', x: 'o',
+        y: 'a', z: 'i',
+        0: '7', 1: '4', 2: '0', 3: '9', 4: '2', 5: '8', 6: '1', 7: '5', 8: '6', 9: '3'
+    };
+
+    function waitForO884() {
+        if (ig.game && ig.game.O884 && typeof ig.game.O884.say === "function") {
+            hookSay();
+        } else setTimeout(waitForO884, 100);
+    }
+
+    function hookSay() {
+        const originalSay = ig.game.O884.say;
+
+        ig.game.O884.say = function(text) {
+            if (text.startsWith("_c")) {
+                let ch = text[2];
+
+                // Map letters and numbers using fixed mapping
+                if (/[a-zA-Z0-9]/.test(ch)) {
+                    const lower = ch.toLowerCase();
+                    const mapped = keyMap[lower];
+                    text = "_c" + (ch === ch.toUpperCase() ? mapped.toUpperCase() : mapped);
+                }
+            }
+
+            return originalSay.call(this, text);
+        };
+
+        console.log("Fixed mapping active — letters & numbers including WASD remapped.");
+        console.log("Key map:", keyMap);
+    }
+
+    waitForO884();
+})();
