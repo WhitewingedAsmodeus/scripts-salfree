@@ -1,0 +1,142 @@
+``voice to text```
+```
+(function speechtotextRealtime() {
+    let speechSettings = JSON.parse(localStorage.getItem('speechsettings'));
+    ig.game.settings.spe = speechSettings === null ? false : speechSettings;
+
+    function timeout(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    const playerChat = Deobfuscator.object(ig.game.player, 'player', false);
+    const wordBuffer = []; // buffer for words
+
+    ig.game.player.type = async function(text) {
+        if (!text) return;
+        if (text === '_nl') {
+            ig.game.websocket.sendSpeech('_nl');
+            playerChat.addItem('_nl', false);
+        } else {
+            for (const letter of text) {
+                ig.game.websocket.sendSpeech(`_c${letter}`);
+                playerChat.addItem(`_c${letter}`, false);
+                await timeout(50);
+            }
+        }
+    }
+
+    const artyom = new Artyom();
+    const UserDictation = artyom.newDictation({
+        continuous: true,
+        interimResults: true, // process words in real-time
+        onResult: function(event) {
+            const text = event?.value || event;
+            if (text && text.trim() !== '') {
+                // Split by space into words
+                const words = text.trim().split(/\s+/);
+                for (const word of words) {
+                    wordBuffer.push(word.toLowerCase());
+                }
+            }
+        }
+    });
+
+    ig.game.settings.speechFunction = function() {
+        if (!this.spe) {
+            UserDictation.start();
+            // Process words one by one in real-time
+            const interval = setInterval(async () => {
+                while (wordBuffer.length > 0) {
+                    const word = wordBuffer.shift();
+                    if (word) await ig.game.player.type(word + " "); // add space after each word
+                }
+            }, 50);
+            this._bufferInterval = interval;
+        } else {
+            UserDictation.stop();
+            clearInterval(this._bufferInterval);
+        }
+        this.spe = !this.spe;
+        localStorage.setItem('speechsettings', JSON.stringify(this.spe));
+    }
+
+    // Restore toggle on page reload
+    if (ig.game.settings.spe) {
+        ig.game.settings.spe = false;
+        ig.game.settings.speechFunction();
+    }
+
+    // Add toggle to Saltfree settings
+    ig.game.settings.Create.toggle("Speech to Text", "spe", "ig.game.settings.speechFunction()");
+})();
+```
+part two 
+```
+(function() {
+    // Helper to wait
+    function timeout(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Wait until Saltfree is ready
+    function waitForO884(callback) {
+        const check = setInterval(() => {
+            if (ig.game && ig.game.O884 && typeof ig.game.O884.say === "function") {
+                clearInterval(check);
+                callback();
+            }
+        }, 100);
+    }
+
+    waitForO884(() => {
+        // Text buffer for voice phrases
+        const textBuffer = [];
+
+        // Typing function
+        async function slowTypeText(text, delay = 50) {
+            if (!text) return; // safety
+            for (let i = 0; i < text.length; i++) {
+                const char = text.charAt(i);
+                if (char) {
+                    ig.game.O884.say("_s" + char);
+                }
+                if ((i + 1) % 20 === 0 && (char === " " || char === "~")) {
+                    ig.game.O884.say("_nl");
+                }
+                await timeout(delay);
+            }
+            ig.game.O884.say("_nl"); // newline at end
+        }
+
+        // Setup voice recognition if available
+        if ('webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+
+            recognition.onresult = function(event) {
+                const lastResult = event.results[event.results.length - 1];
+                const transcript = lastResult?.[0]?.transcript?.trim();
+                if (transcript) {
+                    textBuffer.push(transcript);
+                }
+            };
+
+            recognition.onerror = function() {}; // silently ignore
+            recognition.onend = function() { recognition.start(); }; // auto-restart
+            recognition.start();
+        }
+
+        // Process buffer without console output
+        setInterval(() => {
+            if (textBuffer.length > 0) {
+                const phrase = textBuffer.shift();
+                if (phrase) slowTypeText(phrase);
+            }
+        }, 100);
+
+        // Optional: type a static message to test
+        // slowTypeText("Test message to ensure typing works");
+    });
+})();
+```
