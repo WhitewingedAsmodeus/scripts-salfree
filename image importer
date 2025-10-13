@@ -1,0 +1,118 @@
+(async () => {
+    if (typeof Jimp === 'undefined') {
+        await new Promise(resolve => $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jimp/0.12.0/jimp.min.js', resolve));
+    }
+
+    class MLImage {
+        constructor(jImage) {
+            this.jImage = jImage;
+            this.flatImage = null;
+            this.palette = null;
+            this.paletteImage = null;
+        }
+
+        get w() { return this.jImage.bitmap.width; }
+        get h() { return this.jImage.bitmap.height; }
+
+        flatten() {
+            const d = this.jImage.bitmap.data;
+            this.flatImage = [];
+            for (let y = 0; y < this.h; y++) {
+                for (let x = 0; x < this.w; x++) {
+                    const idx = (y * this.w + x) * 4;
+                    this.flatImage.push([d[idx], d[idx + 1], d[idx + 2], d[idx + 3]]);
+                }
+            }
+            return this.flatImage;
+        }
+
+        getPalette() {
+            this.flatImage ??= this.flatten();
+            const palette = [];
+            const seen = {};
+            for (const px of this.flatImage) {
+                if (px[3] > 10) { // only visible
+                    const key = `${px[0]},${px[1]},${px[2]}`;
+                    if (!seen[key]) {
+                        seen[key] = true;
+                        palette.push({ r:px[0], g:px[1], b:px[2], a:255 });
+                    }
+                }
+            }
+            // sort by brightness: light → dark
+            palette.sort((a, b) => 
+                (0.299*a.r + 0.587*a.g + 0.114*a.b) - 
+                (0.299*b.r + 0.587*b.g + 0.114*b.b)
+            );
+            this.palette = palette.slice(0, 13);
+            return this.palette;
+        }
+
+        palettize() {
+            this.getPalette();
+            this.paletteImage = this.flatImage.map(px => {
+                if (px[3] <= 10) return -1; // transparent
+                let bestIdx = 0;
+                let bestDist = Infinity;
+                for (let i = 0; i < this.palette.length; i++) {
+                    const c = this.palette[i];
+                    const dist = Math.pow(px[0]-c.r,2)+Math.pow(px[1]-c.g,2)+Math.pow(px[2]-c.b,2);
+                    if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+                }
+                return bestIdx;
+            });
+        }
+
+        getPixelIndex(x, y) { return x + y * this.w; }
+        getPixelPIndex(x, y) {
+            const idx = this.paletteImage?.[this.getPixelIndex(x, y)];
+            return (idx !== undefined && idx >= 0) ? idx : -1;
+        }
+    }
+
+    function writeToPainter(img) {
+        const p = ig.game.painter;
+        if (!p) { console.error("Painter not ready"); return; }
+        p.data ??= {};
+        const pd = p.data;
+        pd.colors ??= [];
+        pd.pixels ??= [];
+
+        if (!img.paletteImage) img.palettize();
+
+        // assign colors skipping slots 11–13
+        const slotMapping = [];
+        let slot = 0;
+        for (let i = 0; i < img.palette.length; i++) {
+            while ([10, 11, 12].includes(slot)) slot++; // skip reserved slots
+            pd.colors[slot] = img.palette[i];
+            slotMapping[i] = slot;
+            slot++;
+        }
+
+        // map lighter colors first
+        const frame = [];
+        for (let y = 0; y < img.h; y++) {
+            const row = [];
+            for (let x = 0; x < img.w; x++) {
+                const pixIdx = img.getPixelPIndex(x, y);
+                row.push(pixIdx >= 0 ? slotMapping[pixIdx] : 11); // transparent → eraser
+            }
+            frame.push(row);
+        }
+
+        pd.pixels = [frame];
+        p.update?.();
+        console.log("✅ Image imported with light→dark mapping — shape & transparency preserved!");
+    }
+
+    async function pixelCopyFromImgur(url) {
+        const jImg = await Jimp.read(url);
+        const img = new MLImage(jImg);
+        img.flatten();
+        img.palettize();
+        writeToPainter(img);
+    }
+
+    await pixelCopyFromImgur('https://i.imgur.com/523wDoO.png');
+})();
