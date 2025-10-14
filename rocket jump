@@ -1,0 +1,9 @@
+function rocket() {
+  const player = ig.game.O4269;
+  if(player && typeof player.vel !== "undefined"){
+    player.vel.y = -1100; // negative y = upward velocity
+  }
+}
+
+// Trigger the rocket
+rocket();
