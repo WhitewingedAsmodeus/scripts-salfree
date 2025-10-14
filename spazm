@@ -1,0 +1,14 @@
+const player = ig.game.O4269;
+if (player && player.anims) {
+  const origDraw = player.draw;
+  player.spasmTime = 0;
+  player.draw = function() {
+    this.spasmTime++;
+    const shake = Math.sin(this.spasmTime * 1.5) * 3;
+    ig.system.context.save();
+    ig.system.context.translate(shake, Math.cos(this.spasmTime * 2) * 3);
+    origDraw.apply(this, arguments);
+    ig.system.context.restore();
+  };
+  console.log("spasm attack, will add more later)");
+}
