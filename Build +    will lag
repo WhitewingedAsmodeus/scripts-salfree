@@ -1,0 +1,5 @@
+ig.game.O7715.queuePerformDelayMs = 0;
+eval(`ig.game.mapPlacementValidation.getAllInnerOfRectangleAreSameForFillBuilding=${ig.game.mapPlacementValidation.getAllInnerOfRectangleAreSameForFillBuilding.toString().replaceAll("return g", "return true")}`)
+ig.game.mapPlacementValidation.O7782 = function(a, b) {
+    return true;
+};
