@@ -1,4 +1,5 @@
 (function() {
+    //freecam ctrl + e
     'use strict';
 
     const game = ig.game;
@@ -9,7 +10,7 @@
     const originalOffset = { x: cam.offset.x, y: cam.offset.y };
     let followMouse = false;
 
-    // Freecam reach reach (adjust this for bigger range)
+    // distance
     const reachMultiplier = 2; // 1 = normal, 2 = double, etc.
 
     // Hook camera update
@@ -27,7 +28,7 @@
             }
         }
 
-        // Apply mouse-following freecam (centered + extended)
+        // i think you guys are retarded. why do are you reading this message.
         if (followMouse) {
             const mx = ig.input.mouse.x;
             const my = ig.input.mouse.y;
