@@ -1,0 +1,234 @@
+// ==UserScript==
+// @name         Saltfree Mod Board
+// @namespace    http://tampermonkey.net/
+// @version      1.8
+// @description  Mod board with Rocket, Drag Player (Ctrl+Y), Godmode toggle, and minimize button
+// @match        https://saltfree.antisa.lt/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+  'use strict';
+
+  const style = document.createElement('style');
+  style.innerHTML = `
+    #mod_board, #mod_board button {
+      font-family: sans-serif;
+      user-select: none;
+      image-rendering: pixelated;
+    }
+    #mod_board button:focus {
+      outline: none;
+    }
+  `;
+  document.head.appendChild(style);
+
+  const wait = setInterval(() => {
+    if (typeof ig !== 'undefined' && ig.game && ig.game.O4269) {
+      clearInterval(wait);
+      initBoard();
+    }
+  }, 100);
+
+  function initBoard() {
+    const board = document.createElement('div');
+    board.id = 'mod_board';
+    board.style.cssText = `
+      position:fixed; top:20px; right:20px; width:160px; padding:5px;
+      background:#bfbcb8;
+      border-top:2px solid #efeeec;
+      border-left:2px solid #efeeec;
+      border-bottom:2px solid #6f6d69;
+      border-right:2px solid #6f6d69;
+      font-size:12px; color:#000;
+      z-index:9999; cursor:grab;
+      box-sizing:border-box;
+    `;
+    document.body.appendChild(board);
+
+    // === Draggable panel ===
+    let dragging = false, ox, oy;
+    board.onmousedown = e => { dragging = true; ox = e.clientX - board.offsetLeft; oy = e.clientY - board.offsetTop; board.style.cursor = 'grabbing'; };
+    document.onmouseup = () => { dragging = false; board.style.cursor = 'grab'; };
+    document.onmousemove = e => { if (dragging) { board.style.left = e.clientX - ox + 'px'; board.style.top = e.clientY - oy + 'px'; } };
+
+    // === Minimize button ===
+    const minimize = document.createElement('div');
+    minimize.innerHTML = `
+      <div style="
+        width:0; height:0;
+        border-left:3px solid transparent;
+        border-right:3px solid transparent;
+        border-top:5px solid #000;
+        margin:0 auto;
+      "></div>
+    `;
+    minimize.style.cssText = `
+      position:absolute; top:4px; right:4px;
+      width:9px; height:9px;
+      background:#bfbcb8;
+      border-top:2px solid #efeeec;
+      border-left:2px solid #efeeec;
+      border-bottom:2px solid #6f6d69;
+      border-right:2px solid #6f6d69;
+      cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+    `;
+    board.appendChild(minimize);
+
+    let minimized = false;
+
+    // === Content container ===
+    const contentDiv = document.createElement('div');
+    contentDiv.style.marginTop = '10px';
+    board.appendChild(contentDiv);
+
+    const title = document.createElement('div');
+    title.textContent = 'MOD BOARD';
+    title.style.cssText = `text-align:center; font-weight:bold; margin-bottom:5px;`;
+    contentDiv.appendChild(title);
+
+    // === Button helper ===
+    function createButton(text) {
+      const btn = document.createElement('button');
+      btn.textContent = text;
+      btn.style.cssText = `
+        width:100%; padding:2px 0; margin-top:3px;
+        background:#c6c3bf;
+        border-top:2px solid #efeeec;
+        border-left:2px solid #efeeec;
+        border-bottom:2px solid #6f6d69;
+        border-right:2px solid #6f6d69;
+        cursor:pointer;
+      `;
+      contentDiv.appendChild(btn);
+      return btn;
+    }
+
+    // === Rocket button ===
+    const rocketBtn = createButton("Rocket");
+    rocketBtn.onclick = () => {
+      const player = ig.game.O4269;
+      if (player && typeof player.vel !== 'undefined') player.vel.y = -1100;
+
+      rocketBtn.style.borderTop = '2px solid #6f6d69';
+      rocketBtn.style.borderLeft = '2px solid #6f6d69';
+      rocketBtn.style.borderBottom = '2px solid #efeeec';
+      rocketBtn.style.borderRight = '2px solid #efeeec';
+      rocketBtn.style.background = '#a3a19d';
+      setTimeout(() => {
+        rocketBtn.style.borderTop = '2px solid #efeeec';
+        rocketBtn.style.borderLeft = '2px solid #efeeec';
+        rocketBtn.style.borderBottom = '2px solid #6f6d69';
+        rocketBtn.style.borderRight = '2px solid #6f6d69';
+        rocketBtn.style.background = '#c6c3bf';
+      }, 120);
+    };
+
+    // === Drag & Godmode setup ===
+    let dragMode = false, godEnabled = false;
+    let player, mouseX = 0, mouseY = 0, originalKill;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position:fixed; top:0; left:0; width:100vw; height:100vh;
+      z-index:9998; pointer-events:none; cursor:crosshair;
+    `;
+    document.body.appendChild(overlay);
+
+    function getMousePos(e) {
+      const rect = ig.system.canvas.getBoundingClientRect();
+      const scale = ig.system.scale || 1;
+      const x = (e.clientX - rect.left) / scale + ig.game.screen.x;
+      const y = (e.clientY - rect.top) / scale + ig.game.screen.y;
+      return { x, y };
+    }
+
+    document.addEventListener('mousemove', e => {
+      if (!ig.system?.canvas) return;
+      const pos = getMousePos(e);
+      mouseX = pos.x; mouseY = pos.y;
+    });
+
+    function startLoop() {
+      function loop() {
+        if (dragMode && player) {
+          const tx = mouseX - player.size.x / 2;
+          const ty = mouseY - player.size.y / 2;
+          player.pos.x += (tx - player.pos.x) * 0.2;
+          player.pos.y += (ty - player.pos.y) * 0.2;
+          player.vel.x = 0;
+          player.vel.y = 0;
+        }
+        requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    function initDrag() {
+      if (window.ig && ig.game && ig.game.O4269) {
+        player = ig.game.O4269;
+        originalKill = player.kill.bind(player);
+        startLoop();
+      } else setTimeout(initDrag, 100);
+    }
+    initDrag();
+
+    function updateKill() {
+      if (!player) return;
+      player.kill = (dragMode || godEnabled) ? () => {} : originalKill;
+    }
+
+    // === Drag Player button ===
+    const dragBtn = createButton("Drag Player (Ctrl+Y)");
+    dragBtn.style.fontSize = '11px';
+    dragBtn.onclick = () => {
+      dragMode = !dragMode;
+      overlay.style.pointerEvents = dragMode ? 'auto' : 'none';
+      updateKill();
+      // toggle look
+      if (dragMode) {
+        dragBtn.style.borderTop = '2px solid #6f6d69';
+        dragBtn.style.borderLeft = '2px solid #6f6d69';
+        dragBtn.style.borderBottom = '2px solid #efeeec';
+        dragBtn.style.borderRight = '2px solid #efeeec';
+        dragBtn.style.background = '#a3a19d';
+      } else {
+        dragBtn.style.borderTop = '2px solid #efeeec';
+        dragBtn.style.borderLeft = '2px solid #efeeec';
+        dragBtn.style.borderBottom = '2px solid #6f6d69';
+        dragBtn.style.borderRight = '2px solid #6f6d69';
+        dragBtn.style.background = '#c6c3bf';
+      }
+    };
+
+    document.addEventListener('keydown', e => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        dragBtn.onclick();
+      }
+    });
+
+    // === Godmode toggle ===
+    const godBtn = createButton("Godmode");
+    godBtn.onclick = () => {
+      godEnabled = !godEnabled;
+      updateKill();
+      // toggle look
+      godBtn.style.background = godEnabled ? '#a3a19d' : '#c6c3bf';
+      godBtn.style.borderTop = godEnabled ? '2px solid #6f6d69' : '2px solid #efeeec';
+      godBtn.style.borderLeft = godEnabled ? '2px solid #6f6d69' : '2px solid #efeeec';
+      godBtn.style.borderBottom = godEnabled ? '2px solid #efeeec' : '2px solid #6f6d69';
+      godBtn.style.borderRight = godEnabled ? '2px solid #efeeec' : '2px solid #6f6d69';
+    };
+
+    // === Minimize button logic ===
+    minimize.onclick = () => {
+      minimized = !minimized;
+      contentDiv.style.display = minimized ? 'none' : 'block';
+      board.style.paddingBottom = minimized ? '4px' : '5px';
+      minimize.firstElementChild.style.borderTop = minimized ? 'none' : '5px solid #000';
+      minimize.firstElementChild.style.borderBottom = minimized ? '5px solid #000' : 'none';
+    };
+  }
+})();
