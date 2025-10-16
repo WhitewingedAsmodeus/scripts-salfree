@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Saltfree Mod Board
 // @namespace    http://tampermonkey.net/
-// @version      1.8
-// @description  Mod board with Rocket, Drag Player (Ctrl+Y), Godmode toggle, and minimize button
+// @version      2.0
+// @description  Mod board with Rocket, Drag Player (Ctrl+Y), Godmode, Chatter, High Contrast, and Info
 // @match        https://saltfree.antisa.lt/*
 // @grant        none
 // ==/UserScript==
@@ -35,7 +35,7 @@
     board.id = 'mod_board';
     board.style.cssText = `
       position:fixed; top:20px; right:20px; width:160px; padding:5px;
-      background:#bfbcb8;
+      background:rgba(191,188,184,0.85);
       border-top:2px solid #efeeec;
       border-left:2px solid #efeeec;
       border-bottom:2px solid #6f6d69;
@@ -46,13 +46,13 @@
     `;
     document.body.appendChild(board);
 
-    // === Draggable panel ===
+    // good enough
     let dragging = false, ox, oy;
     board.onmousedown = e => { dragging = true; ox = e.clientX - board.offsetLeft; oy = e.clientY - board.offsetTop; board.style.cursor = 'grabbing'; };
     document.onmouseup = () => { dragging = false; board.style.cursor = 'grab'; };
     document.onmousemove = e => { if (dragging) { board.style.left = e.clientX - ox + 'px'; board.style.top = e.clientY - oy + 'px'; } };
 
-    // === Minimize button ===
+    // what the helly minimize button, still in work, i made this super quickly smh
     const minimize = document.createElement('div');
     minimize.innerHTML = `
       <div style="
@@ -66,7 +66,7 @@
     minimize.style.cssText = `
       position:absolute; top:4px; right:4px;
       width:9px; height:9px;
-      background:#bfbcb8;
+      background:rgba(191,188,184,0.85);
       border-top:2px solid #efeeec;
       border-left:2px solid #efeeec;
       border-bottom:2px solid #6f6d69;
@@ -78,7 +78,6 @@
 
     let minimized = false;
 
-    // === Content container ===
     const contentDiv = document.createElement('div');
     contentDiv.style.marginTop = '10px';
     board.appendChild(contentDiv);
@@ -88,13 +87,13 @@
     title.style.cssText = `text-align:center; font-weight:bold; margin-bottom:5px;`;
     contentDiv.appendChild(title);
 
-    // === Button helper ===
+    // buttottototnotnotontontonbuttonbuttonbuttonnn
     function createButton(text) {
       const btn = document.createElement('button');
       btn.textContent = text;
       btn.style.cssText = `
         width:100%; padding:2px 0; margin-top:3px;
-        background:#c6c3bf;
+        background:rgba(198,195,191,0.85);
         border-top:2px solid #efeeec;
         border-left:2px solid #efeeec;
         border-bottom:2px solid #6f6d69;
@@ -105,27 +104,16 @@
       return btn;
     }
 
-    // === Rocket button ===
+   
     const rocketBtn = createButton("Rocket");
     rocketBtn.onclick = () => {
       const player = ig.game.O4269;
       if (player && typeof player.vel !== 'undefined') player.vel.y = -1100;
-
-      rocketBtn.style.borderTop = '2px solid #6f6d69';
-      rocketBtn.style.borderLeft = '2px solid #6f6d69';
-      rocketBtn.style.borderBottom = '2px solid #efeeec';
-      rocketBtn.style.borderRight = '2px solid #efeeec';
       rocketBtn.style.background = '#a3a19d';
-      setTimeout(() => {
-        rocketBtn.style.borderTop = '2px solid #efeeec';
-        rocketBtn.style.borderLeft = '2px solid #efeeec';
-        rocketBtn.style.borderBottom = '2px solid #6f6d69';
-        rocketBtn.style.borderRight = '2px solid #6f6d69';
-        rocketBtn.style.background = '#c6c3bf';
-      }, 120);
+      setTimeout(() => rocketBtn.style.background = 'rgba(198,195,191,0.85)', 120);
     };
 
-    // === Drag & Godmode setup ===
+    // uhhhhhhhhhhh no
     let dragMode = false, godEnabled = false;
     let player, mouseX = 0, mouseY = 0, originalKill;
 
@@ -139,9 +127,10 @@
     function getMousePos(e) {
       const rect = ig.system.canvas.getBoundingClientRect();
       const scale = ig.system.scale || 1;
-      const x = (e.clientX - rect.left) / scale + ig.game.screen.x;
-      const y = (e.clientY - rect.top) / scale + ig.game.screen.y;
-      return { x, y };
+      return {
+        x: (e.clientX - rect.left) / scale + ig.game.screen.x,
+        y: (e.clientY - rect.top) / scale + ig.game.screen.y
+      };
     }
 
     document.addEventListener('mousemove', e => {
@@ -179,29 +168,15 @@
       player.kill = (dragMode || godEnabled) ? () => {} : originalKill;
     }
 
-    // === Drag Player button ===
+    // drag yo ass back over here and sit down and listen to whatver yapper you were listening to
     const dragBtn = createButton("Drag Player (Ctrl+Y)");
     dragBtn.style.fontSize = '11px';
     dragBtn.onclick = () => {
       dragMode = !dragMode;
       overlay.style.pointerEvents = dragMode ? 'auto' : 'none';
       updateKill();
-      // toggle look
-      if (dragMode) {
-        dragBtn.style.borderTop = '2px solid #6f6d69';
-        dragBtn.style.borderLeft = '2px solid #6f6d69';
-        dragBtn.style.borderBottom = '2px solid #efeeec';
-        dragBtn.style.borderRight = '2px solid #efeeec';
-        dragBtn.style.background = '#a3a19d';
-      } else {
-        dragBtn.style.borderTop = '2px solid #efeeec';
-        dragBtn.style.borderLeft = '2px solid #efeeec';
-        dragBtn.style.borderBottom = '2px solid #6f6d69';
-        dragBtn.style.borderRight = '2px solid #6f6d69';
-        dragBtn.style.background = '#c6c3bf';
-      }
+      dragBtn.style.background = dragMode ? '#a3a19d' : 'rgba(198,195,191,0.85)';
     };
-
     document.addEventListener('keydown', e => {
       if (e.ctrlKey && e.key.toLowerCase() === 'y') {
         e.preventDefault();
@@ -209,26 +184,222 @@
       }
     });
 
-    // === Godmode toggle ===
+    // dont give this to gsa, he might start thinking hes a god irl
     const godBtn = createButton("Godmode");
     godBtn.onclick = () => {
       godEnabled = !godEnabled;
       updateKill();
-      // toggle look
-      godBtn.style.background = godEnabled ? '#a3a19d' : '#c6c3bf';
-      godBtn.style.borderTop = godEnabled ? '2px solid #6f6d69' : '2px solid #efeeec';
-      godBtn.style.borderLeft = godEnabled ? '2px solid #6f6d69' : '2px solid #efeeec';
-      godBtn.style.borderBottom = godEnabled ? '2px solid #efeeec' : '2px solid #6f6d69';
-      godBtn.style.borderRight = godEnabled ? '2px solid #efeeec' : '2px solid #6f6d69';
+      godBtn.style.background = godEnabled ? '#a3a19d' : 'rgba(198,195,191,0.85)';
     };
 
-    // === Minimize button logic ===
+    // when you walk do it jiggle
+    let highContrast = localStorage.getItem('contrastsettings') === 'true';
+    const applyContrast = on => {
+      const filter = on ? 'contrast(300%) brightness(110%)' : 'contrast(100%) brightness(100%)';
+      const canvas = document.querySelector('canvas');
+      if (canvas) canvas.style.filter = filter;
+      board.style.filter = filter;
+    };
+    applyContrast(highContrast);
+    const contrastBtn = createButton("High Contrast");
+    contrastBtn.style.background = highContrast ? '#a3a19d' : 'rgba(198,195,191,0.85)';
+    contrastBtn.onclick = () => {
+      highContrast = !highContrast;
+      localStorage.setItem('contrastsettings', highContrast);
+      applyContrast(highContrast);
+      contrastBtn.style.background = highContrast ? '#a3a19d' : 'rgba(198,195,191,0.85)';
+    };
+
+    // yapper button
+    let chatterEnabled = false;
+    const chatterDiv = document.createElement("div");
+    chatterDiv.style.cssText = `
+      margin-top:5px; padding:5px; border:1px solid #6f6d69;
+      background:rgba(198,195,191,0.85); display:none; box-sizing:border-box;
+    `;
+    contentDiv.appendChild(chatterDiv);
+
+    const textInput = document.createElement("input");
+    textInput.type = "text";
+    textInput.placeholder = "Enter text...";
+    textInput.style.cssText = "width:100%; margin-bottom:3px; font-size:11px; box-sizing:border-box;";
+    chatterDiv.appendChild(textInput);
+
+    const speedLabel = document.createElement("label");
+    speedLabel.textContent = "Speed:";
+    speedLabel.style.cssText = "font-size:11px;";
+    chatterDiv.appendChild(speedLabel);
+
+    const speedSlider = document.createElement("input");
+    speedSlider.type = "range";
+    speedSlider.min = 20;
+    speedSlider.max = 100;
+    speedSlider.value = 50;
+    speedSlider.style.cssText = "width:100%; margin-bottom:3px;";
+    chatterDiv.appendChild(speedSlider);
+
+    const runBtn = document.createElement("button");
+    runBtn.textContent = "Run";
+    runBtn.style.cssText = `
+      width:100%; padding:2px 0; background:rgba(198,195,191,0.85);
+      border-top:2px solid #efeeec; border-left:2px solid #efeeec;
+      border-bottom:2px solid #6f6d69; border-right:2px solid #6f6d69;
+      cursor:pointer;
+    `;
+    chatterDiv.appendChild(runBtn);
+
+    const chatterBtn = createButton("Chatter");
+    chatterBtn.onclick = () => {
+      chatterEnabled = !chatterEnabled;
+      chatterDiv.style.display = chatterEnabled ? "block" : "none";
+      chatterBtn.style.background = chatterEnabled ? "#a3a19d" : "rgba(198,195,191,0.85)";
+    };
+
+    function slowType(fullText, delay) {
+      let i = 0, totalTextLength = 0;
+      const type = setInterval(() => {
+        const char = fullText.charAt(i);
+        ig.game.O884.say("_s" + char);
+        i++;
+        totalTextLength++;
+        if ((totalTextLength > 20 && char === " ") || (totalTextLength > 20 && char === "~")) {
+          ig.game.O884.say("_nl");
+          totalTextLength = 0;
+        }
+        if (i >= fullText.length) clearInterval(type);
+      }, delay);
+    }
+
+    runBtn.onclick = () => {
+      const text = textInput.value;
+      const speed = 120 - parseInt(speedSlider.value);
+      if (text.length > 0) slowType(text, speed);
+    };
+
+    //.....
+    const infoBtn = createButton("Info");
+    infoBtn.onclick = () => {
+      if (document.querySelector('#infoUI')) {
+        document.querySelector('#infoUI').remove();
+        return;
+      }
+      const info = document.createElement('div');
+      info.id = 'infoUI';
+      info.style.cssText = `
+        position:fixed; bottom:20px; left:20px;
+        background:rgba(191,188,184,0.85);
+        border-top:2px solid #efeeec;
+        border-left:2px solid #efeeec;
+        border-bottom:2px solid #6f6d69;
+        border-right:2px solid #6f6d69;
+        padding:8px; border-radius:3px;
+        font-size:11px; color:#000;
+        font-family:sans-serif; z-index:9999;
+        width:220px; box-sizing:border-box;
+      `;
+      info.innerHTML = `
+        <b>Skyelar</b><br><br>
+        I love trying to code, and I find other people's art and code amazing.<br>
+        I aspire to be like them.<br><br>
+        Discord: <b>themilkdirector</b><br>
+        Gmail: <b>skyelarkessner@gmail.com</b><br><br>
+        Let me know if there's any bugs or ideas you'd want to add or want me to add!
+
+        <b>ctrl+y to fly and ill be updating the chatter thing soon </b><br>
+      `;
+      document.body.appendChild(info);
+    };
+
+    // STAWWWWWPP GO AWAYAYYYYY
     minimize.onclick = () => {
       minimized = !minimized;
       contentDiv.style.display = minimized ? 'none' : 'block';
-      board.style.paddingBottom = minimized ? '4px' : '5px';
       minimize.firstElementChild.style.borderTop = minimized ? 'none' : '5px solid #000';
       minimize.firstElementChild.style.borderBottom = minimized ? '5px solid #000' : 'none';
     };
   }
+})();
+
+
+; 
+(function() {
+    'use strict';
+
+    function addSelfDestructButton() {
+        const board = document.getElementById("mod_board");
+        if (!board) return;
+
+        const btn = document.createElement("button");
+        btn.textContent = "Shitty Self Destruct";
+        btn.style.cssText = `
+            width:100%;
+            padding:2px 0;
+            margin-top:3px;
+            background:#c6c3bf;
+            border-top:2px solid #efeeec;
+            border-left:2px solid #efeeec;
+            border-bottom:2px solid #6f6d69;
+            border-right:2px solid #6f6d69;
+            cursor:pointer;
+            font-weight:bold;
+            color:#a00;
+        `;
+        btn.onclick = () => startExplosion(board);
+        board.appendChild(btn);
+    }
+
+    function startExplosion(board) {
+        const explosionGif = 'https://i.pinimg.com/originals/43/7e/60/437e60c3fe83d636e7f514fac5a6e39e.gif';
+        const rect = board.getBoundingClientRect();
+        const count = 4;
+        const explosions = [];
+
+        for (let i = 0; i < count; i++) {
+            const exp = document.createElement('img');
+            exp.src = explosionGif;
+            exp.style.cssText = `
+                position:fixed;
+                left:${rect.left + (Math.random() * rect.width) - 50}px;
+                top:${rect.top + (Math.random() * rect.height) - 50}px;
+                width:${rect.width / 1.2}px;
+                height:${rect.height / 1.2}px;
+                z-index:9999;
+                pointer-events:none;
+                transform:scale(${1 + Math.random() * 0.5});
+                opacity:0;
+                transition:opacity 0.1s;
+            `;
+            document.body.appendChild(exp);
+            explosions.push(exp);
+            setTimeout(() => exp.style.opacity = 1, i * 150);
+        }
+
+        const tracker = setInterval(() => {
+            const rect = board.getBoundingClientRect();
+            explosions.forEach((exp) => {
+                exp.style.left = `${rect.left + (Math.random() * rect.width) - 50}px`;
+                exp.style.top = `${rect.top + (Math.random() * rect.height) - 50}px`;
+            });
+        }, 100);
+
+        setTimeout(() => {
+            board.style.opacity = 0;
+        }, 2300);
+
+        setTimeout(() => {
+            clearInterval(tracker);
+            explosions.forEach(e => e.remove());
+            board.remove();
+            console.log("shitty self destruct avtivated... DUDE WHAT THE FUCK WHY DID U DO THAT, STUPID BITCH GO TO HELL");
+            console.log("also id reccomend closing out info first next time you do that....          ...stupid bitch.");
+        }, 2800);
+    }
+
+    const wait = setInterval(() => {
+        const board = document.getElementById("mod_board");
+        if (board) {
+            clearInterval(wait);
+            addSelfDestructButton();
+        }
+    }, 100);
 })();
