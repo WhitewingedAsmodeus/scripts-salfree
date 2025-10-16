@@ -66,7 +66,8 @@ These are the main scripts you’ll likely want to use first:
 
 ## 💬 About the Creator
 this is also in the info tab for the mod board
-**Skyelar**  
+
+>**Skyelar**  
 - I love trying to code and exploring other people's art and code.  
 - I aspire to create scripts and UIs inspired by amazing work I encounter.  
 - Discord: **themilkdirector**  
